@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { HomePage } from "./pages/HomePage"
 import { ConstructorPage } from "./pages/ConstructorPage"
 import { LibraryPage } from "./pages/LibraryPage"
@@ -10,6 +10,19 @@ export type ToolType = "label" | "barcode" | "qr" | null
 function App() {
   const [page, setPage] = useState<Page>("home")
   const [activeTool, setActiveTool] = useState<ToolType>(null)
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem("theme") === "dark"
+  })
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark")
+      localStorage.setItem("theme", "dark")
+    } else {
+      document.documentElement.classList.remove("dark")
+      localStorage.setItem("theme", "light")
+    }
+  }, [darkMode])
 
   const navigateTo = (p: Page, tool?: ToolType) => {
     setPage(p)
@@ -18,7 +31,12 @@ function App() {
 
   return (
     <div className="min-h-screen font-sans" style={{ backgroundColor: "var(--violet-bg)" }}>
-      <Navigation currentPage={page} onNavigate={(p) => navigateTo(p)} />
+      <Navigation
+        currentPage={page}
+        onNavigate={(p) => navigateTo(p)}
+        darkMode={darkMode}
+        onToggleDark={() => setDarkMode((d) => !d)}
+      />
       <main className="pt-16">
         {page === "home" && <HomePage onNavigate={navigateTo} />}
         {page === "constructor" && <ConstructorPage activeTool={activeTool} />}

@@ -5,6 +5,8 @@ import type { Page } from "@/App"
 interface NavigationProps {
   currentPage: Page
   onNavigate: (page: Page) => void
+  darkMode: boolean
+  onToggleDark: () => void
 }
 
 const navItems: { label: string; page: Page; icon: string }[] = [
@@ -13,16 +15,16 @@ const navItems: { label: string; page: Page; icon: string }[] = [
   { label: "Библиотека", page: "library", icon: "Library" },
 ]
 
-export function Navigation({ currentPage, onNavigate }: NavigationProps) {
+export function Navigation({ currentPage, onNavigate, darkMode, onToggleDark }: NavigationProps) {
   return (
     <nav
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 h-16"
       style={{
-        background: "rgba(248, 244, 255, 0.85)",
+        background: "var(--panel-bg)",
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(139, 92, 246, 0.1)",
-        boxShadow: "0 1px 20px rgba(139, 92, 246, 0.08)",
+        borderBottom: "1px solid var(--surface-border)",
+        boxShadow: "0 1px 20px var(--glow-color)",
       }}
     >
       <div className="flex items-center gap-2">
@@ -32,7 +34,7 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
         >
           <Icon name="Tag" size={16} className="text-white" />
         </div>
-        <span className="text-sm font-semibold" style={{ color: "#4c1d95" }}>
+        <span className="text-sm font-semibold" style={{ color: "var(--violet-accent)" }}>
           LabelGen
         </span>
       </div>
@@ -44,7 +46,7 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
             onClick={() => onNavigate(item.page)}
             className="relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
             style={{
-              color: currentPage === item.page ? "var(--violet-accent)" : "#6b7280",
+              color: currentPage === item.page ? "var(--violet-accent)" : "var(--text-secondary)",
             }}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
@@ -53,7 +55,7 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
               <motion.div
                 layoutId="nav-pill"
                 className="absolute inset-0 rounded-xl"
-                style={{ background: "rgba(139, 92, 246, 0.1)" }}
+                style={{ background: "rgba(139, 92, 246, 0.12)" }}
                 transition={{ type: "spring", stiffness: 500, damping: 35 }}
               />
             )}
@@ -61,6 +63,36 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
             <span className="relative">{item.label}</span>
           </motion.button>
         ))}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <motion.button
+          onClick={onToggleDark}
+          className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
+          style={{
+            background: "rgba(139, 92, 246, 0.1)",
+            border: "1px solid var(--surface-border)",
+            color: "var(--violet-accent)",
+          }}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
+          title={darkMode ? "Светлая тема" : "Тёмная тема"}
+        >
+          <Icon name={darkMode ? "Sun" : "Moon"} size={16} />
+        </motion.button>
+
+        <motion.button
+          className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
+          style={{
+            background: "rgba(139, 92, 246, 0.1)",
+            border: "1px solid var(--surface-border)",
+            color: "var(--violet-accent)",
+          }}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
+        >
+          <Icon name="User" size={16} />
+        </motion.button>
       </div>
     </nav>
   )

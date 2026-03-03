@@ -60,8 +60,8 @@ const mockLabels = [
     date: "26.02.2026",
     preview: [
       { text: "Получатель:", bold: true, y: 16 },
-      { text: "Иванов Иван Иванович", y: 36 },
-      { text: "г. Москва, ул. Пушкина, 1", y: 56 },
+      { text: "Иванов Иван", y: 36 },
+      { text: "г. Москва, ул. Пушкина", y: 56 },
     ],
   },
   {
@@ -75,20 +75,46 @@ const mockLabels = [
       { qr: true, y: 32 },
     ],
   },
+  {
+    id: 7,
+    name: "Data Matrix лекарство",
+    size: "30×20 мм",
+    type: "datamatrix",
+    date: "24.02.2026",
+    preview: [
+      { text: "АРТ-007", bold: true, y: 12 },
+      { qr: true, y: 32 },
+    ],
+  },
+  {
+    id: 8,
+    name: "Серийная партия",
+    size: "80×50 мм",
+    type: "barcode",
+    date: "23.02.2026",
+    preview: [
+      { text: "Партия №001", bold: true, y: 12 },
+      { barcode: true, y: 36 },
+    ],
+  },
 ]
 
-const typeColors: Record<string, { bg: string; color: string; label: string }> = {
-  label: { bg: "rgba(139,92,246,0.1)", color: "#8b5cf6", label: "Этикетка" },
-  barcode: { bg: "rgba(124,58,237,0.1)", color: "#7c3aed", label: "Штрих-код" },
-  qr: { bg: "rgba(99,102,241,0.1)", color: "#6366f1", label: "QR-код" },
+const typeColors: Record<string, { bg: string; color: string; label: string; icon: string }> = {
+  label: { bg: "rgba(139,92,246,0.12)", color: "#8b5cf6", label: "Этикетка", icon: "Tag" },
+  barcode: { bg: "rgba(124,58,237,0.12)", color: "#7c3aed", label: "Штрих-код", icon: "BarChart2" },
+  qr: { bg: "rgba(99,102,241,0.12)", color: "#6366f1", label: "QR-код", icon: "QrCode" },
+  datamatrix: { bg: "rgba(167,139,250,0.12)", color: "#a78bfa", label: "Data Matrix", icon: "Grid3x3" },
 }
+
+const filterTypes = ["Все", "Этикетка", "Штрих-код", "QR-код", "Data Matrix"]
 
 function LabelPreview({ preview }: { preview: typeof mockLabels[0]["preview"] }) {
   return (
     <div
-      className="relative w-full rounded-xl overflow-hidden bg-white"
+      className="relative w-full rounded-xl overflow-hidden"
       style={{
         height: 110,
+        background: "var(--canvas-bg)",
         border: "1px dashed rgba(139,92,246,0.2)",
       }}
     >
@@ -103,7 +129,7 @@ function LabelPreview({ preview }: { preview: typeof mockLabels[0]["preview"] })
         if ("barcode" in el && el.barcode) {
           return (
             <div key={i} className="absolute" style={{ left: 12, top: el.y }}>
-              <span className="text-lg font-mono tracking-[-2px] text-gray-700" style={{ fontSize: 18 }}>
+              <span className="font-mono" style={{ fontSize: 18, letterSpacing: "-2px", color: "var(--text-primary)" }}>
                 ▌▌█▌▌▌█▌█▌▌▌█
               </span>
             </div>
@@ -118,9 +144,9 @@ function LabelPreview({ preview }: { preview: typeof mockLabels[0]["preview"] })
             >
               <div
                 className="w-16 h-16 rounded-lg flex items-center justify-center"
-                style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.15)" }}
+                style={{ background: "rgba(139,92,246,0.08)", border: "1px solid var(--surface-border)" }}
               >
-                <Icon name="QrCode" size={36} style={{ color: "#8b5cf6" }} />
+                <Icon name="QrCode" size={36} style={{ color: "var(--violet-accent)" }} />
               </div>
             </div>
           )
@@ -132,7 +158,7 @@ function LabelPreview({ preview }: { preview: typeof mockLabels[0]["preview"] })
                 style={{
                   fontSize: 10,
                   fontWeight: el.bold ? 700 : 400,
-                  color: "#1e0a3c",
+                  color: "var(--text-primary)",
                   fontFamily: "Inter, sans-serif",
                 }}
               >
@@ -149,7 +175,7 @@ function LabelPreview({ preview }: { preview: typeof mockLabels[0]["preview"] })
 
 const containerVariants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
+  visible: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.04 } },
 }
 
 const itemVariants = {
@@ -160,6 +186,9 @@ const itemVariants = {
 export function LibraryPage({ onNavigate }: LibraryPageProps) {
   const [labels, setLabels] = useState(mockLabels)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [search, setSearch] = useState("")
+  const [activeFilter, setActiveFilter] = useState("Все")
+  const [syncing, setSyncing] = useState(false)
 
   const handleDelete = (id: number) => {
     setDeletingId(id)
@@ -169,159 +198,291 @@ export function LibraryPage({ onNavigate }: LibraryPageProps) {
     }, 300)
   }
 
+  const handleSync = () => {
+    setSyncing(true)
+    setTimeout(() => setSyncing(false), 2000)
+  }
+
+  const filterMap: Record<string, string> = {
+    "Этикетка": "label",
+    "Штрих-код": "barcode",
+    "QR-код": "qr",
+    "Data Matrix": "datamatrix",
+  }
+
+  const filteredLabels = labels.filter((l) => {
+    const matchType = activeFilter === "Все" || l.type === filterMap[activeFilter]
+    const matchSearch = l.name.toLowerCase().includes(search.toLowerCase()) ||
+      l.size.toLowerCase().includes(search.toLowerCase())
+    return matchType && matchSearch
+  })
+
   return (
-    <div className="min-h-[calc(100vh-64px)] px-8 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between mb-8"
+    <div className="min-h-[calc(100vh-64px)] flex">
+      <div
+        className="w-52 flex flex-col p-4 gap-4"
+        style={{
+          background: "var(--panel-bg)",
+          borderRight: "1px solid var(--surface-border)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+        }}
       >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ color: "#1e0a3c" }}>
-            Библиотека
-          </h1>
-          <p className="mt-1 text-sm" style={{ color: "#9ca3af" }}>
-            {labels.length} сохранённых шаблонов
+          <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
+            Тип
           </p>
-        </div>
-        <motion.button
-          onClick={() => onNavigate("constructor")}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white"
-          style={{ background: "var(--violet-accent)" }}
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.96 }}
-        >
-          <Icon name="Plus" size={15} />
-          Создать новый
-        </motion.button>
-      </motion.div>
-
-      <motion.div
-        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <AnimatePresence>
-          {labels.map((label) => {
-            const typeInfo = typeColors[label.type]
-            return (
-              <motion.div
-                key={label.id}
-                variants={itemVariants}
-                exit={{ opacity: 0, scale: 0.9 }}
-                animate={deletingId === label.id ? { opacity: 0, scale: 0.9 } : { opacity: 1, scale: 1 }}
-                className="flex flex-col rounded-2xl overflow-hidden group"
+          <div className="flex flex-col gap-1">
+            {filterTypes.map((type) => (
+              <motion.button
+                key={type}
+                onClick={() => setActiveFilter(type)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-left transition-all"
                 style={{
-                  background: "rgba(255, 255, 255, 0.8)",
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  border: "1px solid rgba(139, 92, 246, 0.1)",
-                  boxShadow: "0 4px 20px rgba(139, 92, 246, 0.06), 0 1px 4px rgba(0,0,0,0.04)",
+                  background: activeFilter === type ? "rgba(139,92,246,0.15)" : "transparent",
+                  color: activeFilter === type ? "var(--violet-accent)" : "var(--text-secondary)",
+                  border: `1px solid ${activeFilter === type ? "rgba(139,92,246,0.3)" : "transparent"}`,
                 }}
-                whileHover={{
-                  y: -4,
-                  boxShadow: "0 12px 36px rgba(139, 92, 246, 0.15), 0 4px 12px rgba(0,0,0,0.06)",
-                }}
-                transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <div className="p-4">
-                  <LabelPreview preview={label.preview} />
-                </div>
-
-                <div className="px-4 pb-4 flex flex-col gap-3">
-                  <div>
-                    <h3 className="text-sm font-semibold leading-tight" style={{ color: "#1e0a3c" }}>
-                      {label.name}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span
-                        className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                        style={{ background: typeInfo.bg, color: typeInfo.color }}
-                      >
-                        {typeInfo.label}
-                      </span>
-                      <span className="text-[10px]" style={{ color: "#9ca3af" }}>
-                        {label.size}
-                      </span>
-                    </div>
-                    <p className="text-[10px] mt-1" style={{ color: "#c4b5fd" }}>
-                      {label.date}
-                    </p>
-                  </div>
-
-                  <div className="flex gap-1.5">
-                    <motion.button
-                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl text-[11px] font-medium transition-all"
-                      style={{
-                        background: "rgba(139,92,246,0.1)",
-                        color: "var(--violet-accent)",
-                        border: "1px solid rgba(139,92,246,0.15)",
-                      }}
-                      whileHover={{ scale: 1.04 }}
-                      whileTap={{ scale: 0.96 }}
-                      onClick={() => onNavigate("constructor")}
-                    >
-                      <Icon name="Pencil" size={11} />
-                      Изменить
-                    </motion.button>
-                    <motion.button
-                      className="flex items-center justify-center w-8 h-8 rounded-xl transition-all"
-                      style={{
-                        background: "rgba(139,92,246,0.08)",
-                        color: "#8b5cf6",
-                        border: "1px solid rgba(139,92,246,0.12)",
-                      }}
-                      whileHover={{ scale: 1.08 }}
-                      whileTap={{ scale: 0.92 }}
-                    >
-                      <Icon name="Download" size={12} />
-                    </motion.button>
-                    <motion.button
-                      className="flex items-center justify-center w-8 h-8 rounded-xl transition-all"
-                      style={{
-                        background: "rgba(239,68,68,0.07)",
-                        color: "#ef4444",
-                        border: "1px solid rgba(239,68,68,0.12)",
-                      }}
-                      whileHover={{ scale: 1.08 }}
-                      whileTap={{ scale: 0.92 }}
-                      onClick={() => handleDelete(label.id)}
-                    >
-                      <Icon name="Trash2" size={12} />
-                    </motion.button>
-                  </div>
-                </div>
-              </motion.div>
-            )
-          })}
-        </AnimatePresence>
-      </motion.div>
-
-      {labels.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex flex-col items-center justify-center py-24 gap-4"
-        >
-          <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center"
-            style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.15)" }}
-          >
-            <Icon name="Library" size={36} style={{ color: "#c4b5fd" }} />
+                {type !== "Все" && (
+                  <Icon
+                    name={Object.values(typeColors).find((t) => t.label === type)?.icon || "Tag"}
+                    size={13}
+                  />
+                )}
+                {type === "Все" && <Icon name="LayoutGrid" size={13} />}
+                {type}
+              </motion.button>
+            ))}
           </div>
-          <p className="text-sm" style={{ color: "#9ca3af" }}>Библиотека пустая — создайте первый шаблон</p>
-          <motion.button
-            onClick={() => onNavigate("constructor")}
-            className="px-5 py-2.5 rounded-xl text-sm font-medium text-white"
-            style={{ background: "var(--violet-accent)" }}
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
-          >
-            Создать шаблон
-          </motion.button>
+        </div>
+
+        <div className="h-px" style={{ background: "var(--surface-border)" }} />
+
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
+            Статистика
+          </p>
+          <div className="space-y-2">
+            {[
+              { label: "Всего шаблонов", value: labels.length },
+              { label: "Этикеток", value: labels.filter((l) => l.type === "label").length },
+              { label: "Штрих-кодов", value: labels.filter((l) => l.type === "barcode").length },
+              { label: "QR-кодов", value: labels.filter((l) => l.type === "qr").length },
+            ].map((stat) => (
+              <div key={stat.label} className="flex items-center justify-between">
+                <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{stat.label}</span>
+                <span
+                  className="text-[11px] font-semibold px-2 py-0.5 rounded-lg"
+                  style={{ background: "rgba(139,92,246,0.1)", color: "var(--violet-accent)" }}
+                >
+                  {stat.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 px-6 py-6">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 mb-6 flex-wrap"
+        >
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
+              Библиотека
+            </h1>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+              {filteredLabels.length} из {labels.length} шаблонов
+            </p>
+          </div>
+
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Icon name="Search" size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
+              <input
+                className="pl-8 pr-4 py-2 rounded-xl text-xs outline-none w-52"
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid var(--surface-border)",
+                  color: "var(--text-primary)",
+                  backdropFilter: "blur(12px)",
+                }}
+                placeholder="Поиск шаблонов..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+
+            <motion.button
+              onClick={handleSync}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium"
+              style={{
+                background: syncing ? "rgba(139,92,246,0.2)" : "var(--surface)",
+                border: "1px solid var(--surface-border)",
+                color: syncing ? "var(--violet-accent)" : "var(--text-secondary)",
+              }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              animate={syncing ? { rotate: 360 } : { rotate: 0 }}
+              transition={syncing ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}
+            >
+              <Icon name="CloudUpload" size={14} />
+              {syncing ? "Синхронизация..." : "Синхронизировать"}
+            </motion.button>
+
+            <motion.button
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium"
+              style={{
+                background: "rgba(139,92,246,0.1)",
+                border: "1px solid var(--surface-border)",
+                color: "var(--violet-accent)",
+              }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+            >
+              <Icon name="FileSpreadsheet" size={14} />
+              Загрузить CSV
+            </motion.button>
+
+            <motion.button
+              onClick={() => onNavigate("constructor")}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white"
+              style={{ background: "var(--violet-accent)" }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+            >
+              <Icon name="Plus" size={14} />
+              Создать
+            </motion.button>
+          </div>
         </motion.div>
-      )}
+
+        {filteredLabels.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center py-24 gap-4"
+          >
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{ background: "rgba(139,92,246,0.1)" }}
+            >
+              <Icon name="SearchX" size={28} style={{ color: "var(--violet-accent)" }} />
+            </div>
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Ничего не найдено</p>
+          </motion.div>
+        ) : (
+          <motion.div
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <AnimatePresence>
+              {filteredLabels.map((label) => {
+                const typeInfo = typeColors[label.type] || typeColors.label
+                return (
+                  <motion.div
+                    key={label.id}
+                    variants={itemVariants}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    animate={deletingId === label.id ? { opacity: 0, scale: 0.9 } : { opacity: 1, scale: 1 }}
+                    className="flex flex-col rounded-2xl overflow-hidden group"
+                    style={{
+                      background: "var(--surface)",
+                      backdropFilter: "blur(20px)",
+                      WebkitBackdropFilter: "blur(20px)",
+                      border: "1px solid var(--surface-border)",
+                      boxShadow: "0 4px 20px var(--glow-color), 0 1px 4px rgba(0,0,0,0.04)",
+                    }}
+                    whileHover={{
+                      y: -4,
+                      boxShadow: "0 12px 36px var(--glow-color), 0 4px 12px rgba(0,0,0,0.06)",
+                    }}
+                    transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                  >
+                    <div className="p-3.5">
+                      <LabelPreview preview={label.preview} />
+                    </div>
+
+                    <div className="px-3.5 pb-3.5 flex flex-col gap-2.5">
+                      <div>
+                        <h3 className="text-xs font-semibold leading-tight" style={{ color: "var(--text-primary)" }}>
+                          {label.name}
+                        </h3>
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          <span
+                            className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                            style={{ background: typeInfo.bg, color: typeInfo.color }}
+                          >
+                            <Icon name={typeInfo.icon} size={9} />
+                            {typeInfo.label}
+                          </span>
+                          <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                            {label.size}
+                          </span>
+                        </div>
+                        <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>
+                          {label.date}
+                        </p>
+                      </div>
+
+                      <div className="flex gap-1.5">
+                        <motion.button
+                          onClick={() => onNavigate("constructor")}
+                          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl text-[10px] font-medium"
+                          style={{
+                            background: "rgba(139,92,246,0.1)",
+                            border: "1px solid var(--surface-border)",
+                            color: "var(--violet-accent)",
+                          }}
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.96 }}
+                        >
+                          <Icon name="Pencil" size={10} />
+                          Изменить
+                        </motion.button>
+                        <motion.button
+                          className="w-8 flex items-center justify-center rounded-xl"
+                          style={{
+                            background: "rgba(139,92,246,0.1)",
+                            border: "1px solid var(--surface-border)",
+                            color: "var(--violet-accent)",
+                          }}
+                          whileHover={{ scale: 1.08 }}
+                          whileTap={{ scale: 0.92 }}
+                          title="Скачать"
+                        >
+                          <Icon name="Download" size={12} />
+                        </motion.button>
+                        <motion.button
+                          onClick={() => handleDelete(label.id)}
+                          className="w-8 flex items-center justify-center rounded-xl"
+                          style={{
+                            background: "rgba(239,68,68,0.08)",
+                            border: "1px solid rgba(239,68,68,0.15)",
+                            color: "#ef4444",
+                          }}
+                          whileHover={{ scale: 1.08 }}
+                          whileTap={{ scale: 0.92 }}
+                          title="Удалить"
+                        >
+                          <Icon name="Trash2" size={12} />
+                        </motion.button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </div>
     </div>
   )
 }
